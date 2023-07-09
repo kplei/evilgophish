@@ -29,8 +29,9 @@ function print_info () {
 if [[ $# -ne 7 ]]; then
     print_error "Missing Parameters:"
     print_error "Usage:"
-    print_error './setup <root domain> <subdomain(s)> <root domain bool> <redirect url> <feed bool> <rid replacement> <blacklist bool>'
-    print_error " - root domain                     - the root domain to be used for the campaign"
+    print_error './setup <evilginx root domain> <apache domain> <subdomain(s)> <root domain bool> <redirect url> <feed bool> <rid replacement> <blacklist bool>'
+    print_error " - evilginx root domain                     - the root domain to be used for the campaign - this should match your CDN domain"
+    print_error " - apache domain                     - the root domain to be used for the campaign - this should be a domain you own"
     print_error " - subdomains                      - a space separated list of subdomains to proxy to evilginx3, can be one if only one"
     print_error " - root domain bool                - true or false to proxy root domain to evilginx3"
     print_error " - redirect url                    - URL to redirect unauthorized Apache requests"
@@ -44,19 +45,20 @@ if [[ $# -ne 7 ]]; then
 fi
 
 # Set variables from parameters
-root_domain="${1}"
-evilginx3_subs="${2}"
-e_root_bool="${3}"
-redirect_url="${4}"
-feed_bool="${5}"
-rid_replacement="${6}"
+evilginx_root_domain="${1}"
+apache_domain="${2}"
+evilginx3_subs="${3}"
+e_root_bool="${4}"
+redirect_url="${5}"
+feed_bool="${6}"
+rid_replacement="${7}"
 evilginx_dir=$HOME/.evilginx
-bl_bool="${7}"
+bl_bool="${8}"
 
 # Get path to certificates
 function get_certs_path () {
     print_info "Run the command below to generate letsencrypt certificates (will need to create two (2) DNS TXT records):"
-    print_info "letsencrypt|certbot certonly --manual --preferred-challenges=dns --email admin@${root_domain} --server https://acme-v02.api.letsencrypt.org/directory --agree-tos -d '*.${root_domain}' -d '${root_domain}'"
+    print_info "letsencrypt|certbot certonly --manual --preferred-challenges=dns --email admin@${apache_domain} --server https://acme-v02.api.letsencrypt.org/directory --agree-tos -d '*.${apache_domain}' -d '${apache_domain}'"
     print_info "Once certificates are generated, enter path to certificates:"
     read -r certs_path
     if [[ ${certs_path: -1} != "/" ]]; then
@@ -93,11 +95,11 @@ function setup_apache () {
     # Prepare Apache 000-default.conf file
     evilginx3_cstring=""
     for esub in ${evilginx3_subs} ; do
-        evilginx3_cstring+=${esub}.${root_domain}
+        evilginx3_cstring+=${esub}.${apache_domain}
         evilginx3_cstring+=" "
     done
     if [[ $(echo "${e_root_bool}" | grep -ci "true") -gt 0 ]]; then
-        evilginx3_cstring+=${root_domain}
+        evilginx3_cstring+=${apache_domain}
     fi
     # Replace template values with user input
     if [[ $(echo "${bl_bool}" | grep -ci "true") -gt 0 ]]; then
