@@ -30,9 +30,9 @@ if [[ $# -ne 7 ]]; then
     print_error "Missing Parameters:"
     print_error "Usage:"
     print_error './setup <evilginx root domain> <apache domain> <subdomain(s)> <root domain bool> <redirect url> <feed bool> <rid replacement> <blacklist bool>'
-    print_error " - evilginx root domain                     - the root domain to be used for the campaign - this should match your CDN domain"
-    print_error " - apache domain                     - the root domain to be used for the campaign - this should be a domain you own"
-    print_error " - subdomains                      - a space separated list of subdomains to proxy to evilginx3, can be one if only one"
+    print_error " - evilginx root domain            - the root domain to be used for the campaign - this should match your CDN domain"
+    print_error " - apache domain                   - the root domain to be used for the campaign - this should be a domain you own - point your CDN to this"
+    print_error " - subdomains                      - a space separated list of subdomains to proxy to evilginx3, can be one if only one - should match CDN subdomains"
     print_error " - root domain bool                - true or false to proxy root domain to evilginx3"
     print_error " - redirect url                    - URL to redirect unauthorized Apache requests"
     print_error " - feed bool                       - true or false if you plan to use the live feed"
@@ -95,7 +95,7 @@ function setup_apache () {
     # Prepare Apache 000-default.conf file
     evilginx3_cstring=""
     for esub in ${evilginx3_subs} ; do
-        evilginx3_cstring+=${esub}.${apache_domain}
+        evilginx3_cstring+=${esub}.${evilginx_root_domain}
         evilginx3_cstring+=" "
     done
     if [[ $(echo "${e_root_bool}" | grep -ci "true") -gt 0 ]]; then
@@ -103,9 +103,9 @@ function setup_apache () {
     fi
     # Replace template values with user input
     if [[ $(echo "${bl_bool}" | grep -ci "true") -gt 0 ]]; then
-        sed "s/ServerAlias evilginx3.template/ServerAlias ${evilginx3_cstring}/g" conf/000-default.conf.template > 000-default.conf
+        sed "s/ServerAlias evilginx3.template/ServerAlias ${evilginx_root_domain}/g" conf/000-default.conf.template > 000-default.conf
     else 
-        sed "s/ServerAlias evilginx3.template/ServerAlias ${evilginx3_cstring}/g" conf/000-default-no-bl.conf.template > 000-default.conf
+        sed "s/ServerAlias evilginx3.template/ServerAlias ${evilginx_root_domain}/g" conf/000-default-no-bl.conf.template > 000-default.conf
     fi
     sed -i "s|SSLCertificateFile|SSLCertificateFile ${certs_path}cert.pem|g" 000-default.conf
     sed -i "s|SSLCertificateChainFile|SSLCertificateChainFile ${certs_path}fullchain.pem|g" 000-default.conf
@@ -129,21 +129,21 @@ function setup_apache () {
 # Configure and install evilginx3
 function setup_evilginx3 () {
     # Copy over certs for phishlets
-    print_info "Configuring evilginx3"
-    mkdir -p "${evilginx_dir}/crt/${root_domain}"
-    for i in evilginx3/phishlets/*.yaml; do
-        phishlet=$(echo "${i}" | awk -F "/" '{print $3}' | sed 's/.yaml//g')
-        ln -sf ${certs_path}fullchain.pem "${evilginx_dir}/crt/${root_domain}/${phishlet}.crt"
-        ln -sf ${certs_path}privkey.pem "${evilginx_dir}/crt/${root_domain}/${phishlet}.key"
-    done
-    # Prepare DNS for evilginx3
-    evilginx3_cstring=""
-    for esub in ${evilginx3_subs} ; do
-        evilginx3_cstring+=${esub}.${root_domain}
-        evilginx3_cstring+=" "
-    done
+#    print_info "Configuring evilginx3"
+#    mkdir -p "${evilginx_dir}/crt/${root_domain}"
+#    for i in evilginx3/phishlets/*.yaml; do
+#        phishlet=$(echo "${i}" | awk -F "/" '{print $3}' | sed 's/.yaml//g')
+#        ln -sf ${certs_path}fullchain.pem "${evilginx_dir}/crt/${root_domain}/${phishlet}.crt"
+#        ln -sf ${certs_path}privkey.pem "${evilginx_dir}/crt/${root_domain}/${phishlet}.key"
+#    done
+    # Prepare DNS for evilginx3 - need to use your own DNS for this
+#    evilginx3_cstring=""
+#    for esub in ${evilginx3_subs} ; do
+#        evilginx3_cstring+=${esub}.${root_domain}
+#        evilginx3_cstring+=" "
+#    done
     cp /etc/hosts /etc/hosts.bak
-    sed -i "s|127.0.0.1.*|127.0.0.1 localhost ${evilginx3_cstring}${root_domain}|g" /etc/hosts
+    sed -i "s|127.0.0.1.*|127.0.0.1 localhost ${evilginx3_cstring}${evilginx_root_domain}|g" /etc/hosts
     cp /etc/resolv.conf /etc/resolv.conf.bak
     rm /etc/resolv.conf
     ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
